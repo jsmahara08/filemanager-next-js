@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileItem } from '@/types/file-manager';
 import { FileCard } from './file-card';
 import { FileBreadcrumbs } from './file-breadcrumbs';
-import { formatFileSize, getFileIcon, getFileColor } from '@/lib/file-utils';
+import { formatFileSize, getFileIcon, getFileColor, isImageFile } from '@/lib/file-utils';
 import { Loader2, FolderOpen, File, Image as ImageIcon, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
@@ -87,8 +87,8 @@ export const FileBrowserModal = ({
       setCurrentPath(file.path);
       setSelectedFileId('');
     } else {
-      // Generate file URL (in production, this would be the actual file URL)
-      const fileUrl = `https://example.com/files${file.path}`;
+      // Generate proper file URL with domain
+      const fileUrl = `${window.location.origin}/uploads${file.path}`;
       onSelectFile(fileUrl, file.name);
       handleClose();
     }
@@ -97,7 +97,7 @@ export const FileBrowserModal = ({
   const handleConfirmSelection = () => {
     const selectedFile = files.find(f => f.id === selectedFileId);
     if (selectedFile && selectedFile.type === 'file') {
-      const fileUrl = `https://example.com/files${selectedFile.path}`;
+      const fileUrl = `${window.location.origin}/uploads${selectedFile.path}`;
       onSelectFile(fileUrl, selectedFile.name);
       handleClose();
     }
@@ -111,9 +111,37 @@ export const FileBrowserModal = ({
 
   const selectedFile = files.find(f => f.id === selectedFileId);
 
+  const renderFileThumbnail = (file: FileItem) => {
+    if (isImageFile(file)) {
+      return (
+        <div className="relative w-full h-16 bg-muted/30 rounded overflow-hidden">
+          <img
+            src={`/uploads${file.path}`}
+            alt={file.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          <div className="hidden absolute inset-0 flex items-center justify-center">
+            <ImageIcon className="w-6 h-6 text-muted-foreground" />
+          </div>
+        </div>
+      );
+    }
+
+    const IconComponent = (Icons as any)[getFileIcon(file)] || Icons.File;
+    return (
+      <div className="w-full h-16 bg-muted/30 rounded flex items-center justify-center">
+        <IconComponent className={cn("w-8 h-8", getFileColor(file))} />
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="w-5 h-5" />
@@ -145,9 +173,8 @@ export const FileBrowserModal = ({
                 <p>No {fileFilter === 'images' ? 'images' : 'files'} found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {files.map((file) => {
-                  const IconComponent = (Icons as any)[getFileIcon(file)] || Icons.File;
                   const isSelected = selectedFileId === file.id;
                   
                   return (
@@ -163,17 +190,17 @@ export const FileBrowserModal = ({
                       onDoubleClick={() => handleFileDoubleClick(file)}
                     >
                       {isSelected && file.type === 'file' && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1">
+                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-1 z-10">
                           <Check className="w-3 h-3" />
                         </div>
                       )}
                       
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="p-2 rounded-lg bg-muted/30">
-                          <IconComponent className={cn("w-6 h-6", getFileColor(file))} />
-                        </div>
+                      <div className="flex flex-col gap-2">
+                        {/* Thumbnail */}
+                        {renderFileThumbnail(file)}
                         
-                        <div className="text-center w-full">
+                        {/* File Info */}
+                        <div className="text-center">
                           <p className="font-medium text-xs truncate" title={file.name}>
                             {file.name}
                           </p>
@@ -193,16 +220,33 @@ export const FileBrowserModal = ({
           {selectedFile && (
             <div className="border-t p-4 bg-muted/30">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-background">
-                  {(() => {
-                    const IconComponent = (Icons as any)[getFileIcon(selectedFile)] || Icons.File;
-                    return <IconComponent className={cn("w-5 h-5", getFileColor(selectedFile))} />;
-                  })()}
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-background border">
+                  {isImageFile(selectedFile) ? (
+                    <img
+                      src={`/uploads${selectedFile.path}`}
+                      alt={selectedFile.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const IconComponent = (Icons as any)[getFileIcon(selectedFile)] || Icons.File;
+                        e.currentTarget.outerHTML = `<div class="w-full h-full flex items-center justify-center"><svg class="w-6 h-6 ${getFileColor(selectedFile)}"><use href="#${getFileIcon(selectedFile)}"/></svg></div>`;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      {(() => {
+                        const IconComponent = (Icons as any)[getFileIcon(selectedFile)] || Icons.File;
+                        return <IconComponent className={cn("w-6 h-6", getFileColor(selectedFile))} />;
+                      })()}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{selectedFile.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {formatFileSize(selectedFile.size)} • {selectedFile.extension?.toUpperCase()}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {window.location.origin}/uploads{selectedFile.path}
                   </p>
                 </div>
               </div>
