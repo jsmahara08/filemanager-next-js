@@ -214,7 +214,7 @@ export const FileManager = () => {
             handleDelete();
             setContextMenu(null);
           }}
-          onRename={(fileId, newName) => {
+          onRename={(fileId) => {
             handleRename(fileId);
             setContextMenu(null);
           }}
@@ -223,7 +223,6 @@ export const FileManager = () => {
             setContextMenu(null);
           }}
           hasClipboard={state.clipboard.files.length > 0}
-          isRenameDisabled={state.selectedFiles.length === 0} // Disable Rename when no file is selected
         />
       )}
       

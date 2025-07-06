@@ -3,11 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileItem } from '@/types/file-manager';
-import { FileCard } from './file-card';
 import { FileBreadcrumbs } from './file-breadcrumbs';
 import { formatFileSize, getFileIcon, getFileColor, isImageFile } from '@/lib/file-utils';
 import { Loader2, FolderOpen, File, Image as ImageIcon, Check } from 'lucide-react';
@@ -34,6 +31,8 @@ export const FileBrowserModal = ({
   const [selectedFileId, setSelectedFileId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const baseUrl = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || 'http://localhost:3001/uploads';
 
   const fetchFiles = async (path: string) => {
     setIsLoading(true);
@@ -88,7 +87,7 @@ export const FileBrowserModal = ({
       setSelectedFileId('');
     } else {
       // Generate proper file URL with domain
-      const fileUrl = `${window.location.origin}/uploads${file.path}`;
+      const fileUrl = `${baseUrl}${file.path}`;
       onSelectFile(fileUrl, file.name);
       handleClose();
     }
@@ -97,7 +96,7 @@ export const FileBrowserModal = ({
   const handleConfirmSelection = () => {
     const selectedFile = files.find(f => f.id === selectedFileId);
     if (selectedFile && selectedFile.type === 'file') {
-      const fileUrl = `${window.location.origin}/uploads${selectedFile.path}`;
+      const fileUrl = `${baseUrl}${selectedFile.path}`;
       onSelectFile(fileUrl, selectedFile.name);
       handleClose();
     }
@@ -116,7 +115,7 @@ export const FileBrowserModal = ({
       return (
         <div className="relative w-full h-16 bg-muted/30 rounded overflow-hidden">
           <img
-            src={`/uploads${file.path}`}
+            src={`${baseUrl}${file.path}`}
             alt={file.name}
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -133,8 +132,13 @@ export const FileBrowserModal = ({
 
     const IconComponent = (Icons as any)[getFileIcon(file)] || Icons.File;
     return (
-      <div className="w-full h-16 bg-muted/30 rounded flex items-center justify-center">
-        <IconComponent className={cn("w-8 h-8", getFileColor(file))} />
+      <div className="w-full h-16 bg-muted/30 rounded flex flex-col items-center justify-center gap-1">
+        <IconComponent className={cn("w-6 h-6", getFileColor(file))} />
+        {file.extension && (
+          <span className="text-xs font-medium text-muted-foreground uppercase">
+            {file.extension}
+          </span>
+        )}
       </div>
     );
   };
@@ -223,7 +227,7 @@ export const FileBrowserModal = ({
                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-background border">
                   {isImageFile(selectedFile) ? (
                     <img
-                      src={`/uploads${selectedFile.path}`}
+                      src={`${baseUrl}${selectedFile.path}`}
                       alt={selectedFile.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -246,7 +250,7 @@ export const FileBrowserModal = ({
                     {formatFileSize(selectedFile.size)} • {selectedFile.extension?.toUpperCase()}
                   </p>
                   <p className="text-xs text-muted-foreground font-mono">
-                    {window.location.origin}/uploads{selectedFile.path}
+                    {baseUrl}{selectedFile.path}
                   </p>
                 </div>
               </div>

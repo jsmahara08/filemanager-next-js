@@ -23,7 +23,7 @@ interface FileContextMenuProps {
   onCut: () => void;
   onPaste: () => void;
   onDelete: () => void;
-  onRename: (fileId: string, newName: string) => void;
+  onRename: (fileId: string) => void;
   onCreateFolder: () => void;
   hasClipboard: boolean;
 }
@@ -67,8 +67,8 @@ export const FileContextMenu = ({
   }, [onClose]);
 
   const hasSelection = selectedFiles.length > 0;
-  const hasFileSelected = fileId && selectedFiles.includes(fileId);
   const isSingleSelection = selectedFiles.length === 1;
+  const hasFileSelected = fileId && selectedFiles.includes(fileId);
 
   return (
     <div
@@ -104,7 +104,7 @@ export const FileContextMenu = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onRename(fileId, '')}
+              onClick={() => onRename(fileId)}
               className="w-full justify-start px-3 py-2 h-auto"
             >
               <Edit3 className="w-4 h-4 mr-2" />

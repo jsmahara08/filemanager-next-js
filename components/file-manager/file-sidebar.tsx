@@ -19,26 +19,69 @@ interface FolderNode {
   path: string;
   children: FolderNode[];
   isExpanded: boolean;
+  hasChildren: boolean;
 }
 
 export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps) => {
   const [folderTree, setFolderTree] = useState<FolderNode[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/']));
+  const [allFolders, setAllFolders] = useState<FileItem[]>([]);
 
-  // Build folder tree from files
+  // Fetch all folders recursively
+  const fetchAllFolders = async (path: string = '/', visited: Set<string> = new Set()): Promise<FileItem[]> => {
+    if (visited.has(path)) return [];
+    visited.add(path);
+
+    try {
+      const response = await fetch(`/api/files?path=${encodeURIComponent(path)}`);
+      if (!response.ok) return [];
+      
+      const data = await response.json();
+      const folders = data.files.filter((file: FileItem) => file.type === 'folder');
+      
+      let allFolders = [...folders];
+      
+      // Recursively fetch subfolders
+      for (const folder of folders) {
+        const subFolders = await fetchAllFolders(folder.path, visited);
+        allFolders = [...allFolders, ...subFolders];
+      }
+      
+      return allFolders;
+    } catch (error) {
+      console.error('Error fetching folders:', error);
+      return [];
+    }
+  };
+
+  // Load all folders on component mount
   useEffect(() => {
-    const buildFolderTree = (files: FileItem[]): FolderNode[] => {
-      const folders = files.filter(file => file.type === 'folder');
+    const loadAllFolders = async () => {
+      const folders = await fetchAllFolders();
+      setAllFolders(folders);
+    };
+    loadAllFolders();
+  }, []);
+
+  // Build folder tree from all folders
+  useEffect(() => {
+    const buildFolderTree = (folders: FileItem[]): FolderNode[] => {
       const folderMap = new Map<string, FolderNode>();
       
       // Create all folder nodes
       folders.forEach(folder => {
+        const hasChildren = folders.some(f => 
+          f.path.startsWith(folder.path + '/') && 
+          f.path.split('/').length === folder.path.split('/').length + 1
+        );
+        
         folderMap.set(folder.path, {
           id: folder.id,
           name: folder.name,
           path: folder.path,
           children: [],
-          isExpanded: expandedFolders.has(folder.path)
+          isExpanded: expandedFolders.has(folder.path),
+          hasChildren
         });
       });
       
@@ -64,11 +107,19 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
         }
       });
       
-      return rootNodes;
+      // Sort nodes by name
+      const sortNodes = (nodes: FolderNode[]): FolderNode[] => {
+        return nodes.sort((a, b) => a.name.localeCompare(b.name)).map(node => ({
+          ...node,
+          children: sortNodes(node.children)
+        }));
+      };
+      
+      return sortNodes(rootNodes);
     };
 
-    setFolderTree(buildFolderTree(files));
-  }, [files, expandedFolders]);
+    setFolderTree(buildFolderTree(allFolders));
+  }, [allFolders, expandedFolders]);
 
   const toggleFolder = (folderPath: string) => {
     setExpandedFolders(prev => {
@@ -85,7 +136,6 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
   const renderFolderNode = (node: FolderNode, level: number = 0) => {
     const isActive = currentPath === node.path;
     const isExpanded = expandedFolders.has(node.path);
-    const hasChildren = node.children.length > 0;
     const Icon = isActive ? FolderOpen : Folder;
 
     return (
@@ -95,24 +145,21 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
           size="sm"
           onClick={() => {
             onNavigate(node.path);
-            if (hasChildren) {
-              toggleFolder(node.path);
-            }
           }}
           className={cn(
-            "w-full justify-start text-left h-8 px-2",
+            "w-full justify-start text-left h-8 px-2 mb-0.5",
             level > 0 && "ml-4"
           )}
           style={{ paddingLeft: `${8 + level * 16}px` }}
         >
           <div className="flex items-center gap-1 min-w-0 flex-1">
-            {hasChildren && (
+            {node.hasChildren && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleFolder(node.path);
                 }}
-                className="p-0.5 hover:bg-muted rounded"
+                className="p-0.5 hover:bg-muted rounded flex items-center justify-center"
               >
                 {isExpanded ? (
                   <ChevronDown className="w-3 h-3" />
@@ -121,15 +168,15 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
                 )}
               </button>
             )}
-            {!hasChildren && <div className="w-4" />}
+            {!node.hasChildren && <div className="w-4" />}
             <Icon className="w-4 h-4 shrink-0" />
             <span className="truncate text-sm">{node.name}</span>
           </div>
         </Button>
         
         {/* Render children if expanded */}
-        {isExpanded && hasChildren && (
-          <div className="ml-2">
+        {isExpanded && node.hasChildren && (
+          <div>
             {node.children.map(child => renderFolderNode(child, level + 1))}
           </div>
         )}
@@ -137,7 +184,7 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
     );
   };
 
-  const folders = files.filter(file => file.type === 'folder');
+  const currentFolders = files.filter(file => file.type === 'folder');
   const totalFiles = files.filter(file => file.type === 'file').length;
 
   return (
@@ -159,7 +206,7 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
           </Button>
 
           {/* Render folder tree */}
-          <div className="space-y-0.5">
+          <div className="space-y-0.5 mt-2">
             {folderTree.map(node => renderFolderNode(node))}
           </div>
         </div>
@@ -168,7 +215,7 @@ export const FileSidebar = ({ currentPath, onNavigate, files }: FileSidebarProps
       <div className="p-4 border-t">
         <div className="text-xs text-muted-foreground space-y-1">
           <p>{files.length} items total</p>
-          <p>{folders.length} folders</p>
+          <p>{currentFolders.length} folders</p>
           <p>{totalFiles} files</p>
         </div>
       </div>
