@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { FileItem } from '@/types/file-manager';
 import { FileBreadcrumbs } from './file-breadcrumbs';
 import { formatFileSize, getFileIcon, getFileColor, isImageFile } from '@/lib/file-utils';
-import { Loader2, FolderOpen, File, Image as ImageIcon, Check } from 'lucide-react';
+import { Loader2, FolderOpen, File, Image as ImageIcon, Check, Play, Music, Archive, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as Icons from 'lucide-react';
 
@@ -51,7 +51,7 @@ export const FileBrowserModal = ({
       if (fileFilter === 'images') {
         filteredFiles = data.files.filter((file: FileItem) => {
           if (file.type === 'folder') return true;
-          const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+          const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'ico'];
           return imageExtensions.includes(file.extension?.toLowerCase() || '');
         });
       }
@@ -111,9 +111,17 @@ export const FileBrowserModal = ({
   const selectedFile = files.find(f => f.id === selectedFileId);
 
   const renderFileThumbnail = (file: FileItem) => {
+    if (file.type === 'folder') {
+      return (
+        <div className="w-full h-20 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg flex items-center justify-center border">
+          <Icons.Folder className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        </div>
+      );
+    }
+
     if (isImageFile(file)) {
       return (
-        <div className="relative w-full h-16 bg-muted/30 rounded overflow-hidden">
+        <div className="relative w-full h-20 bg-muted/30 rounded-lg overflow-hidden border">
           <img
             src={`${baseUrl}${file.path}`}
             alt={file.name}
@@ -123,19 +131,59 @@ export const FileBrowserModal = ({
               e.currentTarget.nextElementSibling?.classList.remove('hidden');
             }}
           />
-          <div className="hidden absolute inset-0 flex items-center justify-center">
+          <div className="hidden absolute inset-0 flex items-center justify-center bg-muted/30">
             <ImageIcon className="w-6 h-6 text-muted-foreground" />
           </div>
         </div>
       );
     }
 
-    const IconComponent = (Icons as any)[getFileIcon(file)] || Icons.File;
+    // Enhanced display for different file types
+    const getFileTypeDisplay = () => {
+      const ext = file.extension?.toLowerCase();
+      
+      if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+          icon: <Play className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        };
+      }
+      
+      if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20',
+          icon: <Music className="w-6 h-6 text-pink-600 dark:text-pink-400" />
+        };
+      }
+      
+      if (['zip', 'rar', '7z'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20',
+          icon: <Archive className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+        };
+      }
+      
+      if (['pdf', 'doc', 'docx', 'txt'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20',
+          icon: <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
+        };
+      }
+      
+      const IconComponent = (Icons as any)[getFileIcon(file)] || Icons.File;
+      return {
+        bg: 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20',
+        icon: <IconComponent className={cn("w-6 h-6", getFileColor(file))} />
+      };
+    };
+
+    const fileDisplay = getFileTypeDisplay();
+
     return (
-      <div className="w-full h-16 bg-muted/30 rounded flex flex-col items-center justify-center gap-1">
-        <IconComponent className={cn("w-6 h-6", getFileColor(file))} />
+      <div className={cn("w-full h-20 rounded-lg flex flex-col items-center justify-center gap-1 border", fileDisplay.bg)}>
+        {fileDisplay.icon}
         {file.extension && (
-          <span className="text-xs font-medium text-muted-foreground uppercase">
+          <span className="text-xs font-medium text-muted-foreground uppercase px-1 py-0.5 bg-white/80 dark:bg-black/20 rounded">
             {file.extension}
           </span>
         )}
@@ -145,7 +193,7 @@ export const FileBrowserModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="w-5 h-5" />
@@ -177,7 +225,7 @@ export const FileBrowserModal = ({
                 <p>No {fileFilter === 'images' ? 'images' : 'files'} found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                 {files.map((file) => {
                   const isSelected = selectedFileId === file.id;
                   
@@ -185,9 +233,9 @@ export const FileBrowserModal = ({
                     <div
                       key={file.id}
                       className={cn(
-                        "relative p-3 rounded-lg border-2 transition-all duration-200 cursor-pointer hover:shadow-md hover:border-primary/50",
+                        "relative p-3 rounded-xl border-2 transition-all duration-200 cursor-pointer hover:shadow-lg hover:border-primary/50 hover:-translate-y-1",
                         isSelected
-                          ? "border-primary bg-primary/10 shadow-sm"
+                          ? "border-primary bg-primary/10 shadow-md transform -translate-y-1"
                           : "border-border bg-card hover:bg-muted/50"
                       )}
                       onClick={() => handleFileSelect(file)}
@@ -224,7 +272,7 @@ export const FileBrowserModal = ({
           {selectedFile && (
             <div className="border-t p-4 bg-muted/30">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-background border">
+                <div className="w-16 h-12 rounded-lg overflow-hidden bg-background border">
                   {isImageFile(selectedFile) ? (
                     <img
                       src={`${baseUrl}${selectedFile.path}`}
@@ -232,11 +280,11 @@ export const FileBrowserModal = ({
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         const IconComponent = (Icons as any)[getFileIcon(selectedFile)] || Icons.File;
-                        e.currentTarget.outerHTML = `<div class="w-full h-full flex items-center justify-center"><svg class="w-6 h-6 ${getFileColor(selectedFile)}"><use href="#${getFileIcon(selectedFile)}"/></svg></div>`;
+                        e.currentTarget.outerHTML = `<div class="w-full h-full flex items-center justify-center bg-muted/30"><svg class="w-6 h-6 ${getFileColor(selectedFile)}"><use href="#${getFileIcon(selectedFile)}"/></svg></div>`;
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
+                    <div className="w-full h-full flex items-center justify-center bg-muted/30">
                       {(() => {
                         const IconComponent = (Icons as any)[getFileIcon(selectedFile)] || Icons.File;
                         return <IconComponent className={cn("w-6 h-6", getFileColor(selectedFile))} />;
@@ -249,7 +297,7 @@ export const FileBrowserModal = ({
                   <p className="text-sm text-muted-foreground">
                     {formatFileSize(selectedFile.size)} • {selectedFile.extension?.toUpperCase()}
                   </p>
-                  <p className="text-xs text-muted-foreground font-mono">
+                  <p className="text-xs text-muted-foreground font-mono truncate">
                     {baseUrl}{selectedFile.path}
                   </p>
                 </div>

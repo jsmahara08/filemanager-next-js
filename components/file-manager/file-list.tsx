@@ -10,7 +10,7 @@ import {
   isImageFile,
 } from '@/lib/file-utils';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown, Image as ImageIcon } from 'lucide-react';
+import { ChevronUp, ChevronDown, Image as ImageIcon, Play, Music, Archive, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as Icons from 'lucide-react';
@@ -70,12 +70,16 @@ export const FileList = ({
   const renderThumbnail = (file: FileItem) => {
     if (file.type === 'folder') {
       const IconComponent = iconMap.Folder;
-      return <IconComponent className={cn('w-8 h-8 shrink-0', getFileColor(file))} />;
+      return (
+        <div className="w-16 h-10 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded border flex items-center justify-center">
+          <IconComponent className={cn('w-6 h-6', getFileColor(file))} />
+        </div>
+      );
     }
 
     if (isImageFile(file)) {
       return (
-        <div className="relative w-12 h-8 bg-muted/30 rounded overflow-hidden">
+        <div className="relative w-16 h-10 bg-muted/30 rounded overflow-hidden border">
           <img
             src={`${baseUrl}${file.path}`}
             alt={file.name}
@@ -92,9 +96,53 @@ export const FileList = ({
       );
     }
 
-    const iconName = getFileIcon(file);
-    const IconComponent = iconMap[iconName] || Icons.File;
-    return <IconComponent className={cn('w-8 h-8 shrink-0', getFileColor(file))} />;
+    // Enhanced icons for different file types
+    const getFileTypeIcon = () => {
+      const ext = file.extension?.toLowerCase();
+      
+      if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+          icon: <Play className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+        };
+      }
+      
+      if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-900/20 dark:to-pink-800/20',
+          icon: <Music className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+        };
+      }
+      
+      if (['zip', 'rar', '7z'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20',
+          icon: <Archive className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+        };
+      }
+      
+      if (['pdf', 'doc', 'docx', 'txt'].includes(ext || '')) {
+        return {
+          bg: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20',
+          icon: <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
+        };
+      }
+      
+      const iconName = getFileIcon(file);
+      const IconComponent = iconMap[iconName] || Icons.File;
+      return {
+        bg: 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20',
+        icon: <IconComponent className={cn('w-5 h-5', getFileColor(file))} />
+      };
+    };
+
+    const fileDisplay = getFileTypeIcon();
+
+    return (
+      <div className={cn("w-16 h-10 rounded border flex items-center justify-center", fileDisplay.bg)}>
+        {fileDisplay.icon}
+      </div>
+    );
   };
 
   if (files.length === 0) {
@@ -108,9 +156,9 @@ export const FileList = ({
   return (
     <div className="w-full">
       {/* Header Row */}
-      <div className="grid grid-cols-[auto_auto_1fr_120px_180px] gap-4 py-2 px-4 border-b bg-muted/30 text-sm font-medium">
+      <div className="grid grid-cols-[auto_auto_1fr_120px_180px] gap-4 py-3 px-4 border-b bg-muted/30 text-sm font-medium">
         <div className="w-6" />
-        <div className="w-12">Preview</div>
+        <div className="w-16 text-center">Preview</div>
         {getSortButton('name', 'Name')}
         {getSortButton('size', 'Size')}
         {getSortButton('modified', 'Modified')}
@@ -135,7 +183,7 @@ export const FileList = ({
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={() => onFileSelect(file.id)}
-                className="mt-1"
+                className="mt-2"
               />
 
               <div className="flex items-center justify-center">
@@ -143,19 +191,26 @@ export const FileList = ({
               </div>
 
               <div className="flex items-center gap-3 min-w-0">
-                <span
-                  className="truncate font-medium"
-                  title={file.name}
-                >
-                  {file.name}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <span
+                    className="truncate font-medium block"
+                    title={file.name}
+                  >
+                    {file.name}
+                  </span>
+                  {file.extension && (
+                    <span className="text-xs text-muted-foreground uppercase">
+                      {file.extension} file
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground flex items-center">
                 {file.type === 'folder' ? '--' : formatFileSize(file.size)}
               </div>
 
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground flex items-center">
                 {formatDate(file.modified)}
               </div>
             </div>
