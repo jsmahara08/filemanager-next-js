@@ -8,9 +8,11 @@ import { FileSidebar } from './file-sidebar';
 import { FileModals } from './file-modals';
 import { FileContextMenu } from './file-context-menu';
 import { FileBreadcrumbs } from './file-breadcrumbs';
+import { FilePreviewModal } from './file-preview-modal';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { FileItem } from '@/types/file-manager';
 
 export const FileManager = () => {
   const { state, actions } = useFileManager();
@@ -25,8 +27,10 @@ export const FileManager = () => {
     createFolder: false,
     delete: false,
     move: false,
+    preview: false,
     renameFileId: '',
     deleteFileIds: [] as string[],
+    previewFile: null as FileItem | null,
   });
 
   useKeyboardShortcuts({
@@ -85,6 +89,61 @@ export const FileManager = () => {
         delete: true, 
         deleteFileIds: state.selectedFiles 
       }));
+    }
+  };
+
+  const handlePreview = (fileId?: string) => {
+    const targetFileId = fileId || state.selectedFiles[0];
+    const file = state.files.find(f => f.id === targetFileId);
+    if (file && file.type === 'file') {
+      setModals(prev => ({ ...prev, preview: true, previewFile: file }));
+    }
+  };
+
+  const handleDownload = async (fileId?: string) => {
+    const targetFileIds = fileId ? [fileId] : state.selectedFiles;
+    const filesToDownload = state.files.filter(f => targetFileIds.includes(f.id) && f.type === 'file');
+    
+    if (filesToDownload.length === 0) return;
+
+    try {
+      if (filesToDownload.length === 1) {
+        // Single file download
+        const file = filesToDownload[0];
+        const response = await fetch(`/api/download?fileId=${file.id}`);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+      } else {
+        // Multiple files download (zip)
+        const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileIds: targetFileIds }),
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'files.zip';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
     }
   };
 
@@ -147,6 +206,8 @@ export const FileManager = () => {
               hasClipboard={state.clipboard.files.length > 0}
               onPaste={actions.pasteFiles}
               onDelete={handleDelete}
+              onPreview={() => handlePreview()}
+              onDownload={() => handleDownload()}
             />
           </div>
           
@@ -167,6 +228,8 @@ export const FileManager = () => {
                 onFileDoubleClick={(file) => {
                   if (file.type === 'folder') {
                     actions.navigateToPath(file.path);
+                  } else {
+                    handlePreview(file.id);
                   }
                 }}
                 onContextMenu={handleContextMenu}
@@ -179,6 +242,8 @@ export const FileManager = () => {
                 onFileDoubleClick={(file) => {
                   if (file.type === 'folder') {
                     actions.navigateToPath(file.path);
+                  } else {
+                    handlePreview(file.id);
                   }
                 }}
                 onContextMenu={handleContextMenu}
@@ -222,6 +287,14 @@ export const FileManager = () => {
             handleCreateFolder();
             setContextMenu(null);
           }}
+          onPreview={(fileId) => {
+            handlePreview(fileId);
+            setContextMenu(null);
+          }}
+          onDownload={(fileId) => {
+            handleDownload(fileId);
+            setContextMenu(null);
+          }}
           hasClipboard={state.clipboard.files.length > 0}
         />
       )}
@@ -236,11 +309,19 @@ export const FileManager = () => {
             ...prev, 
             [modalType]: false,
             ...(modalType === 'rename' && { renameFileId: '' }),
-            ...(modalType === 'delete' && { deleteFileIds: [] })
+            ...(modalType === 'delete' && { deleteFileIds: [] }),
+            ...(modalType === 'preview' && { previewFile: null })
           }));
         }}
         selectedFiles={modals.deleteFileIds}
         renameFile={state.files.find(f => f.id === modals.renameFileId)}
+      />
+
+      <FilePreviewModal
+        isOpen={modals.preview}
+        onClose={() => setModals(prev => ({ ...prev, preview: false, previewFile: null }))}
+        file={modals.previewFile}
+        onDownload={(file) => handleDownload(file.id)}
       />
     </div>
   );

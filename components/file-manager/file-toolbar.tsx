@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Upload, 
   FolderPlus, 
@@ -10,8 +9,7 @@ import {
   List, 
   Trash2, 
   Download,
-  Copy,
-  Clipboard,
+  Eye,
   Image as ImageIcon
 } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -28,6 +26,8 @@ interface FileToolbarProps {
   hasClipboard: boolean;
   onPaste: () => void;
   onDelete: () => void;
+  onPreview: () => void;
+  onDownload: () => void;
 }
 
 export const FileToolbar = ({
@@ -40,6 +40,8 @@ export const FileToolbar = ({
   hasClipboard,
   onPaste,
   onDelete,
+  onPreview,
+  onDownload,
 }: FileToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showImageUpload, setShowImageUpload] = useState(false);
@@ -58,6 +60,9 @@ export const FileToolbar = ({
   const handleImageUpload = (files: FileList) => {
     onUpload(files);
   };
+
+  const hasSelection = selectedFiles.length > 0;
+  const isSingleSelection = selectedFiles.length === 1;
 
   return (
     <>
@@ -113,12 +118,34 @@ export const FileToolbar = ({
           disabled={!hasClipboard}
           className="flex items-center gap-2"
         >
-          <Clipboard className="w-4 h-4" />
+          <Download className="w-4 h-4" />
           Paste
         </Button>
         
-        {selectedFiles.length > 0 && (
+        {hasSelection && (
           <>
+            {isSingleSelection && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onPreview}
+                className="flex items-center gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Preview
+              </Button>
+            )}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDownload}
+              className="flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download {hasSelection ? `(${selectedFiles.length})` : ''}
+            </Button>
+            
             <Button
               variant="outline"
               size="sm"

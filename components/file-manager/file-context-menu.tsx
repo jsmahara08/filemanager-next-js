@@ -25,6 +25,8 @@ interface FileContextMenuProps {
   onDelete: () => void;
   onRename: (fileId: string) => void;
   onCreateFolder: () => void;
+  onPreview: (fileId: string) => void;
+  onDownload: (fileId: string) => void;
   hasClipboard: boolean;
 }
 
@@ -40,6 +42,8 @@ export const FileContextMenu = ({
   onDelete,
   onRename,
   onCreateFolder,
+  onPreview,
+  onDownload,
   hasClipboard,
 }: FileContextMenuProps) => {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,6 +72,7 @@ export const FileContextMenu = ({
 
   const hasSelection = selectedFiles.length > 0;
   const isSingleSelection = selectedFiles.length === 1;
+  const hasFileSelected = fileId && selectedFiles.includes(fileId);
 
   return (
     <div
@@ -75,12 +80,48 @@ export const FileContextMenu = ({
       className="fixed z-50 w-48 bg-popover border rounded-md shadow-lg py-1"
       style={{ left: x, top: y }}
     >
+      {/* File-specific actions (when right-clicking on a file) */}
+      {fileId && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onPreview(fileId);
+              onClose();
+            }}
+            className="w-full justify-start px-3 py-2 h-auto"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            Preview
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onDownload(fileId);
+              onClose();
+            }}
+            className="w-full justify-start px-3 py-2 h-auto"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download
+          </Button>
+          
+          <div className="h-px bg-border my-1" />
+        </>
+      )}
+
       {hasSelection && (
         <>
           <Button
             variant="ghost"
             size="sm"
-            onClick={onCopy}
+            onClick={() => {
+              onCopy();
+              onClose();
+            }}
             className="w-full justify-start px-3 py-2 h-auto"
           >
             <Copy className="w-4 h-4 mr-2" />
@@ -90,7 +131,10 @@ export const FileContextMenu = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onCut}
+            onClick={() => {
+              onCut();
+              onClose();
+            }}
             className="w-full justify-start px-3 py-2 h-auto"
           >
             <Scissors className="w-4 h-4 mr-2" />
@@ -117,7 +161,10 @@ export const FileContextMenu = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onDelete}
+            onClick={() => {
+              onDelete();
+              onClose();
+            }}
             className="w-full justify-start px-3 py-2 h-auto text-destructive hover:text-destructive"
           >
             <Trash2 className="w-4 h-4 mr-2" />
@@ -132,7 +179,10 @@ export const FileContextMenu = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onPaste}
+            onClick={() => {
+              onPaste();
+              onClose();
+            }}
             className="w-full justify-start px-3 py-2 h-auto"
           >
             <Clipboard className="w-4 h-4 mr-2" />
@@ -147,7 +197,10 @@ export const FileContextMenu = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onCreateFolder}
+            onClick={() => {
+              onCreateFolder();
+              onClose();
+            }}
             className="w-full justify-start px-3 py-2 h-auto"
           >
             <FolderPlus className="w-4 h-4 mr-2" />
