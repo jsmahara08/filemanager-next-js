@@ -110,7 +110,7 @@ export const FileManager = () => {
       if (filesToDownload.length === 1) {
         // Single file download
         const file = filesToDownload[0];
-        const response = await fetch(`/api/download?fileId=${file.id}`);
+        const response = await fetch(`/api/download?fileId=${encodeURIComponent(file.id)}`);
         if (response.ok) {
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
@@ -121,9 +121,11 @@ export const FileManager = () => {
           a.click();
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
+        } else {
+          console.error('Download failed:', response.statusText);
         }
       } else {
-        // Multiple files download (zip)
+        // Multiple files download
         const response = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -135,11 +137,13 @@ export const FileManager = () => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = 'files.zip';
+          a.download = `files-${Date.now()}.zip`;
           document.body.appendChild(a);
           a.click();
           window.URL.revokeObjectURL(url);
           document.body.removeChild(a);
+        } else {
+          console.error('Bulk download failed:', response.statusText);
         }
       }
     } catch (error) {

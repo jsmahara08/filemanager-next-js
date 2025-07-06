@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FileItem } from '@/types/file-manager';
-import { formatFileSize, isImageFile, getMimeType } from '@/lib/file-utils';
-import { Download, X, ZoomIn, ZoomOut, RotateCw, Eye } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { formatFileSize, isImageFile, isVideoFile, isAudioFile } from '@/lib/file-utils';
+import { Download, X, ZoomIn, ZoomOut, RotateCw, Eye, FileText, Play, Music } from 'lucide-react';
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -18,6 +17,8 @@ interface FilePreviewModalProps {
 export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePreviewModalProps) => {
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
+  const [textContent, setTextContent] = useState<string>('');
+  const [isLoadingText, setIsLoadingText] = useState(false);
   
   if (!file) return null;
 
@@ -30,6 +31,25 @@ export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePrev
   const resetView = () => {
     setZoom(100);
     setRotation(0);
+  };
+
+  const loadTextContent = async () => {
+    if (!file) return;
+    
+    setIsLoadingText(true);
+    try {
+      const response = await fetch(fileUrl);
+      if (response.ok) {
+        const text = await response.text();
+        setTextContent(text);
+      } else {
+        setTextContent('Failed to load file content');
+      }
+    } catch (error) {
+      setTextContent('Error loading file content');
+    } finally {
+      setIsLoadingText(false);
+    }
   };
 
   const renderPreview = () => {
@@ -52,7 +72,10 @@ export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePrev
             }}
           />
           <div className="hidden flex items-center justify-center text-muted-foreground">
-            <p>Failed to load image</p>
+            <div className="text-center space-y-2">
+              <Eye className="w-12 h-12 mx-auto text-muted-foreground" />
+              <p>Failed to load image</p>
+            </div>
           </div>
         </div>
       );
@@ -61,59 +84,90 @@ export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePrev
     // PDF preview
     if (ext === 'pdf') {
       return (
-        <div className="flex-1 bg-background rounded-lg border">
+        <div className="flex-1 bg-background rounded-lg border overflow-hidden">
           <iframe
-            src={fileUrl}
-            className="w-full h-full rounded-lg"
+            src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+            className="w-full h-full"
             title={file.name}
+            onError={() => {
+              console.error('Failed to load PDF');
+            }}
           />
         </div>
       );
     }
 
     // Text file preview
-    if (['txt', 'md', 'json', 'xml', 'csv'].includes(ext || '')) {
+    if (['txt', 'md', 'json', 'xml', 'csv', 'js', 'ts', 'html', 'css'].includes(ext || '')) {
       return (
-        <div className="flex-1 bg-background rounded-lg border p-4 overflow-auto">
-          <iframe
-            src={fileUrl}
-            className="w-full h-full border-0"
-            title={file.name}
-          />
+        <div className="flex-1 bg-background rounded-lg border overflow-hidden">
+          <div className="h-full flex flex-col">
+            <div className="p-3 border-b bg-muted/30 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="text-sm font-medium">{file.name}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadTextContent}
+                disabled={isLoadingText}
+              >
+                {isLoadingText ? 'Loading...' : 'Load Content'}
+              </Button>
+            </div>
+            <div className="flex-1 p-4 overflow-auto">
+              {textContent ? (
+                <pre className="text-sm whitespace-pre-wrap font-mono">
+                  {textContent}
+                </pre>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center space-y-2">
+                    <FileText className="w-12 h-12 mx-auto" />
+                    <p>Click "Load Content" to view file</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       );
     }
 
     // Video preview
-    if (['mp4', 'webm', 'ogg', 'mov'].includes(ext || '')) {
+    if (isVideoFile(file)) {
       return (
         <div className="flex-1 flex items-center justify-center bg-black rounded-lg">
           <video
             controls
-            className="max-w-full max-h-full"
+            className="max-w-full max-h-full rounded"
             style={{ transform: `scale(${zoom / 100})` }}
+            preload="metadata"
           >
-            <source src={fileUrl} type={getMimeType(file)} />
-            Your browser does not support the video tag.
+            <source src={fileUrl} />
+            <p className="text-white">Your browser does not support the video tag.</p>
           </video>
         </div>
       );
     }
 
     // Audio preview
-    if (['mp3', 'wav', 'ogg', 'flac', 'aac'].includes(ext || '')) {
+    if (isAudioFile(file)) {
       return (
         <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg">
-          <div className="text-center space-y-4">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-              <Eye className="w-12 h-12 text-primary" />
+          <div className="text-center space-y-6 max-w-md">
+            <div className="w-32 h-32 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <Music className="w-16 h-16 text-primary" />
             </div>
             <div>
-              <h3 className="font-medium text-lg">{file.name}</h3>
-              <p className="text-muted-foreground">Audio File</p>
+              <h3 className="font-medium text-xl mb-2">{file.name}</h3>
+              <p className="text-muted-foreground mb-4">
+                {file.extension?.toUpperCase()} Audio • {formatFileSize(file.size)}
+              </p>
             </div>
-            <audio controls className="w-full max-w-md">
-              <source src={fileUrl} type={getMimeType(file)} />
+            <audio controls className="w-full">
+              <source src={fileUrl} />
               Your browser does not support the audio tag.
             </audio>
           </div>
@@ -124,13 +178,13 @@ export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePrev
     // Default preview for unsupported files
     return (
       <div className="flex-1 flex items-center justify-center bg-muted/30 rounded-lg">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-6">
           <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto">
             <Eye className="w-12 h-12 text-muted-foreground" />
           </div>
           <div>
-            <h3 className="font-medium text-lg">{file.name}</h3>
-            <p className="text-muted-foreground">Preview not available</p>
+            <h3 className="font-medium text-xl mb-2">{file.name}</h3>
+            <p className="text-muted-foreground mb-2">Preview not available</p>
             <p className="text-sm text-muted-foreground">
               {file.extension?.toUpperCase()} • {formatFileSize(file.size)}
             </p>
@@ -145,11 +199,11 @@ export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePrev
   };
 
   const showImageControls = isImageFile(file);
-  const showVideoControls = ['mp4', 'webm', 'ogg', 'mov'].includes(file.extension?.toLowerCase() || '');
+  const showVideoControls = isVideoFile(file);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] flex flex-col">
+      <DialogContent className="max-w-7xl max-h-[95vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2 truncate">
@@ -200,7 +254,7 @@ export const FilePreviewModal = ({ isOpen, onClose, file, onDownload }: FilePrev
                 {file.extension?.toUpperCase()} • {formatFileSize(file.size)}
               </span>
             </div>
-            <div className="text-muted-foreground font-mono text-xs">
+            <div className="text-muted-foreground font-mono text-xs truncate max-w-md">
               {fileUrl}
             </div>
           </div>
