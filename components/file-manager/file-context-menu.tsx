@@ -68,7 +68,6 @@ export const FileContextMenu = ({
 
   const hasSelection = selectedFiles.length > 0;
   const isSingleSelection = selectedFiles.length === 1;
-  const hasFileSelected = fileId && selectedFiles.includes(fileId);
 
   return (
     <div
@@ -104,7 +103,10 @@ export const FileContextMenu = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onRename(fileId)}
+              onClick={() => {
+                onRename(fileId);
+                onClose();
+              }}
               className="w-full justify-start px-3 py-2 h-auto"
             >
               <Edit3 className="w-4 h-4 mr-2" />

@@ -7,9 +7,10 @@ import {
   formatDate,
   getFileIcon,
   getFileColor,
+  isImageFile,
 } from '@/lib/file-utils';
 import { cn } from '@/lib/utils';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as Icons from 'lucide-react';
@@ -36,6 +37,7 @@ export const FileList = ({
   onSort,
 }: FileListProps) => {
   const SortIcon = sortOrder === 'asc' ? ChevronUp : ChevronDown;
+  const baseUrl = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL || 'http://localhost:3001/uploads';
 
   // Map file icon names to lucide-react icon components
   const iconMap: Record<string, React.ElementType> = {
@@ -65,6 +67,36 @@ export const FileList = ({
     </Button>
   );
 
+  const renderThumbnail = (file: FileItem) => {
+    if (file.type === 'folder') {
+      const IconComponent = iconMap.Folder;
+      return <IconComponent className={cn('w-8 h-8 shrink-0', getFileColor(file))} />;
+    }
+
+    if (isImageFile(file)) {
+      return (
+        <div className="relative w-12 h-8 bg-muted/30 rounded overflow-hidden">
+          <img
+            src={`${baseUrl}${file.path}`}
+            alt={file.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          <div className="hidden absolute inset-0 flex items-center justify-center bg-muted/30">
+            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </div>
+      );
+    }
+
+    const iconName = getFileIcon(file);
+    const IconComponent = iconMap[iconName] || Icons.File;
+    return <IconComponent className={cn('w-8 h-8 shrink-0', getFileColor(file))} />;
+  };
+
   if (files.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -76,8 +108,9 @@ export const FileList = ({
   return (
     <div className="w-full">
       {/* Header Row */}
-      <div className="grid grid-cols-[auto_1fr_120px_180px] gap-4 py-2 px-4 border-b bg-muted/30 text-sm font-medium">
+      <div className="grid grid-cols-[auto_auto_1fr_120px_180px] gap-4 py-2 px-4 border-b bg-muted/30 text-sm font-medium">
         <div className="w-6" />
+        <div className="w-12">Preview</div>
         {getSortButton('name', 'Name')}
         {getSortButton('size', 'Size')}
         {getSortButton('modified', 'Modified')}
@@ -86,15 +119,13 @@ export const FileList = ({
       {/* File Rows */}
       <div className="divide-y">
         {files.map((file) => {
-          const iconName = getFileIcon(file);
-          const IconComponent = iconMap[iconName] || Icons.File;
           const isSelected = selectedFiles.includes(file.id);
 
           return (
             <div
               key={file.id}
               className={cn(
-                'grid grid-cols-[auto_1fr_120px_180px] gap-4 py-3 px-4 hover:bg-muted/50 cursor-pointer transition-colors',
+                'grid grid-cols-[auto_auto_1fr_120px_180px] gap-4 py-3 px-4 hover:bg-muted/50 cursor-pointer transition-colors',
                 isSelected && 'bg-primary/10'
               )}
               onClick={() => onFileSelect(file.id)}
@@ -107,10 +138,11 @@ export const FileList = ({
                 className="mt-1"
               />
 
+              <div className="flex items-center justify-center">
+                {renderThumbnail(file)}
+              </div>
+
               <div className="flex items-center gap-3 min-w-0">
-                <IconComponent
-                  className={cn('w-5 h-5 shrink-0', getFileColor(file))}
-                />
                 <span
                   className="truncate font-medium"
                   title={file.name}
